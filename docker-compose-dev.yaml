@@ -1,0 +1,62 @@
+version: '3.8'
+
+x-common:
+  &common
+  image: mnk-server
+  build: server
+  environment:
+    REDIS_HOST: db
+    REDIS_PORT: "6379"
+    LOG_LEVEL: "DEBUG"
+
+services:
+  server:
+    <<: *common
+    command: ["uvicorn",  "src.app:setup_app", "--reload", "--port", "8000", "--host", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
+    volumes:
+      - ./server/src:/home/apiuser/src
+    ports: 
+      - "8000:8000"
+    depends_on:
+      - db
+      - game_manager
+
+  game_manager:
+    <<: *common
+    command: ["python", "src/game_manager.py"]
+    restart: always
+    depends_on:
+      - db
+
+  worker:
+    <<: *common
+    command: ["celery", "-A", "tasks", "worker"]
+    healthcheck:
+      test: celery -b redis://db:6379 inspect ping -d celery@$$HOSTNAME -t 2
+      interval: 10s
+      retries: 3
+    restart: always
+    depends_on:
+      - db
+
+  db:
+    image: redis
+
+  ui:
+    build: client
+    image: mnk-ui
+    healthcheck:
+      test: [ "CMD", "service", "nginx", "status" ]
+      interval: 10s
+      retries: 3
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - server
