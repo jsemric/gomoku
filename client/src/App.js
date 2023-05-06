@@ -10,7 +10,7 @@ class App extends Component {
     if (localStorage.getItem("token") === null) {
       localStorage.setItem("token", uuid4());
     }
-    document.title = "mnk game"
+    document.title = "Gomoku"
   }
 
   render() {

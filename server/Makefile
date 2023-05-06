@@ -3,7 +3,7 @@ IMAGE=server
 start:
 	PYTHONPATH=src LOG_LEVEL=DEBUG python -m uvicorn --factory "src.app:setup_app" --reload
 
-test: build_ext
+test:# build_ext
 	@coverage run --source src --omit src/setup.py -m pytest -o log_cli=false --doctest-modules
 	@coverage report
 	@coverage html

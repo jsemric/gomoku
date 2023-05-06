@@ -11,6 +11,6 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     rm -rf .cache
 COPY --chown=apiuser:apiuser src ./src
-RUN cd src && python setup.py build_ext --inplace
+# RUN cd src && python setup.py build_ext --inplace
 COPY --chown=apiuser:apiuser tests ./tests
 ENV PYTHONPATH=/home/apiuser/src

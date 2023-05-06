@@ -3,16 +3,10 @@ from typing import Optional
 from enum import IntEnum
 
 from exceptions import GameAlreadyFinished, InvalidStep
-
-try:
-    from mtd import Mtd, check_winning_step
-except ImportError:
-    Mtd = lambda *_: None
-    check_winning_step = lambda *_: False
+from utils import check_winning_step, GRID_ROWS, GRID_SIZE
+from strategy import Mtd, BaseStrategy
 
 
-GRID_ROWS = 25
-GRID_SIZE = GRID_ROWS * GRID_ROWS
 logger = logging.getLogger(__name__)
 
 
@@ -23,14 +17,21 @@ class GameStatus(IntEnum):
 
 
 class Game:
-    def __init__(self):
+    def __init__(
+        self,
+        player1_strategy: BaseStrategy = None,
+        player2_strategy: BaseStrategy = None,
+        verbose=False,
+    ):
         self._player1_cells = set()
         self._player2_cells = set()
         self._player2_turn: bool = False
         self._status: GameStatus = GameStatus.Playing
         self._last_step: Optional[int] = None
         self._steps = []
-        self._algo = Mtd(5)
+        self._strategy1 = player1_strategy or Mtd()
+        self._strategy2 = player2_strategy or Mtd()
+        self._verbose = verbose
 
     @property
     def finished(self):
@@ -66,6 +67,14 @@ class Game:
     def player2_turn(self):
         return self._player2_turn
 
+    @property
+    def player1_won(self):
+        return self.finished and self._player2_turn
+
+    @property
+    def player2_won(self):
+        return self.finished and not self._player2_turn
+
     def take(self, pos: int) -> bool:
         if self.finished:
             raise GameAlreadyFinished("Game already finished")
@@ -84,6 +93,9 @@ class Game:
         self._update_status()
         self._player2_turn = not self._player2_turn
         self._steps.append(pos)
+        if self._verbose:
+            buf = grid_as_string(self._player1_cells, self._player2_cells)
+            print(f"\n{buf}\n")
         return self.finished
 
     def _update_status(self):
@@ -101,8 +113,26 @@ class Game:
 
     def next_step(self) -> int:
         p1, p2 = self._player1_cells, self._player2_cells
+        strategy = self._strategy1
         if self._player2_turn:
             p1, p2 = self._player2_cells, self._player1_cells
-        pos = self._algo.run(p1, p2, self._last_step)
+            strategy = self._strategy2
+        pos = strategy.run(p1, p2, self._last_step)
         self.take(pos)
         return pos
+
+
+def grid_as_string(player1, player2):
+    def get_cell(pos):
+        if pos in player1:
+            return "X"
+        if pos in player2:
+            return "O"
+        return " "
+
+    rows = []
+    for row in range(GRID_ROWS):
+        rows.append(
+            "|".join([get_cell(row * GRID_ROWS + col) for col in range(GRID_ROWS)])
+        )
+    return "\n".join(rows)

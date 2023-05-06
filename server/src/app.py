@@ -7,7 +7,7 @@ from typing import Optional
 from uuid import uuid4
 
 import aioredis
-from fastapi import FastAPI, WebSocket, Cookie, Query, status, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, Query, status, WebSocketDisconnect
 
 from game import Game
 from game_manager import GameManager

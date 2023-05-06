@@ -1,40 +1,93 @@
 import random
+import logging
 import math
 from typing import Optional
+from abc import ABC, abstractmethod
+
+from utils import (
+    GRID_SIZE,
+    timeit,
+    steps_to_win,
+    get_neigh,
+    increment_cell_pos,
+    inside_interval_pos,
+)
+
+logger = logging.getLogger(__name__)
 
 WIN_SCORE = 1000
 DEFEAT_SCORE = -WIN_SCORE
-GRID_ROWS = 25
-GRID_SIZE = GRID_ROWS ** 2 - 1
 MAX_DEPTH = 5
 
 
-class AlphaBeta:
+class BaseStrategy(ABC):
+    @abstractmethod
+    def run(self, player1: set[int], player2: set[int], last_step: int) -> int:
+        pass
+
+
+class RandomStrategy(ABC):
+    """Strategy using random cell selection."""
+
+    def run(self, player1: set[int], player2: set[int], last_step: int) -> int:
+        while True:
+            next_pos = random.randint(0, GRID_SIZE - 1)
+            if not self._taken(next_pos, player1, player2):
+                return next_pos
+
+    def _taken(self, pos, player1, player2):
+        return pos in player1 or pos in player2
+
+
+class DummyStrategy(RandomStrategy):
+    """Strategy trying to greedily get 5 in one direction."""
+
+    def __init__(
+        self, row_inc: int = 1, col_inc: int = 1, start_pos: int = GRID_SIZE // 2
+    ) -> None:
+        self.row_inc = row_inc
+        self.col_inc = col_inc
+        self.next_pos = start_pos
+        if self.row_inc not in (1, -1, 0) and self.col_inc not in (1, -1, 0):
+            raise ValueError("Row and column increment must be either 0, 1, or -1.")
+
+    def run(self, player1: set[int], player2: set[int], last_step: int) -> int:
+        self.next_pos = increment_cell_pos(self.next_pos, self.row_inc, self.col_inc)
+        if self._taken(self.next_pos, player1, player2) or not inside_interval_pos(
+            self.next_pos
+        ):
+            self.next_pos = super().run(player1, player2, last_step)
+        return self.next_pos
+
+
+class AlphaBeta(BaseStrategy):
+    """Strategy using the min-max search with the alpha-beta prunning."""
+
     def __init__(self, max_depth: int = MAX_DEPTH):
         self._max_depth = max_depth
 
     def run(
-            self,
-            player1_cells,
-            player2_cells,
-            last_step,
+        self,
+        player1,
+        player2,
+        last_step,
     ) -> int:
         if last_step is None:
             return random.randint(0, GRID_SIZE - 1)
         pos, score = self._run(
-            tuple(player1_cells), tuple(player2_cells), last_step, self._max_depth
+            tuple(player1), tuple(player2), last_step, self._max_depth
         )
         return pos
 
     def _run(
-            self,
-            player1_cells: tuple,
-            player2_cells: tuple,
-            last_step: int,
-            depth: int,
-            maximize: bool = True,
-            alpha: int = -math.inf,
-            beta: int = math.inf,
+        self,
+        player1_cells: tuple,
+        player2_cells: tuple,
+        last_step: int,
+        depth: int,
+        maximize: bool = True,
+        alpha: int = -math.inf,
+        beta: int = math.inf,
     ) -> tuple:
         """Return step and score"""
         assert last_step in player1_cells or last_step in player2_cells
@@ -43,14 +96,18 @@ class AlphaBeta:
 
         # check other player victory
         score = self._evaluate(
-            player2 if maximize else player1, last_step, not maximize, depth
+            player2 if maximize else player1,
+            player1 if maximize else player2,
+            last_step,
+            not maximize,
+            depth,
         )
         if score is not None:
             return None, score
 
         if maximize:
             best_move, best_score = None, -math.inf
-            for move in self._get_possible_moves(player1, player2, last_step):
+            for move in self.get_possible_moves(player1, player2, last_step):
                 _, score = self._run(
                     tuple(player1 | {move}),
                     player2_cells,
@@ -59,7 +116,7 @@ class AlphaBeta:
                     False,
                     alpha,
                     beta,
-                    )
+                )
                 if score > best_score:
                     best_move = move
                     best_score = score
@@ -68,7 +125,7 @@ class AlphaBeta:
                     break
         else:
             best_move, best_score = None, math.inf
-            for move in self._get_possible_moves(player1, player2, last_step):
+            for move in self.get_possible_moves(player1, player2, last_step):
                 _, score = self._run(
                     player1_cells,
                     tuple(player2 | {move}),
@@ -77,7 +134,7 @@ class AlphaBeta:
                     True,
                     alpha,
                     beta,
-                    )
+                )
                 if score < best_score:
                     best_move = move
                     best_score = score
@@ -87,22 +144,29 @@ class AlphaBeta:
 
         return best_move, best_score
 
-    def _get_possible_moves(self, player1: set, player2: set, last_step: int):
+    def get_possible_moves(self, player1: set, player2: set, last_step: int):
         moves = []
         for pos in player1 | player2:
-            for n in _get_neigh(pos):
+            for n in get_neigh(pos):
                 if n not in player1 and n not in player2:
                     moves.append(n)
         return moves
 
     def _evaluate(
-            self, cells: set, last_step: Optional, maximize: bool, depth: int
+        self,
+        player: set,
+        opponent: set,
+        last_step: Optional[int],
+        maximize: bool,
+        depth: int,
     ):
-        if check_winning_step(cells, last_step):
+        steps = steps_to_win(last_step, player, opponent)
+        if steps == 0:
             score = WIN_SCORE - (self._max_depth - depth)
             return score if maximize else -score
         if depth <= 0:
-            return 0
+            # return steps to win the lowe the better
+            return -steps if maximize else steps
         return None
 
 
@@ -113,21 +177,30 @@ class Mtd(AlphaBeta):
         self._table_hits = 0
         self._guess_step = None
 
+    @timeit(name="mtd.run")
     def run(
-            self,
-            player1: set,
-            player2: set,
-            last_step: Optional[int],
+        self,
+        player1: set,
+        player2: set,
+        last_step: "Optional[int]",
     ) -> int:
         self.transposition_table.clear()
         self._table_hits = 0
+        self._table_misses = 0
         self._guess_step = None
         if last_step is None:
             return random.randint(0, GRID_SIZE - 1)
         pos, score = None, 0
         for depth in range(0, self._max_depth):
             pos, score = self._mtd(player1, player2, last_step, score, depth)
+            logger.info("Got step/score/depth %s/%s/%s", pos, score, depth)
             self._guess_step = pos
+            logger.info(
+                "Table hit/miss/depth %6d/%6d/%d",
+                self._table_hits,
+                self._table_misses,
+                depth,
+            )
         return pos
 
     def _mtd(self, player1: set, player2: set, last_step: int, score: int, depth: int):
@@ -146,14 +219,14 @@ class Mtd(AlphaBeta):
         return move, score
 
     def _run(
-            self,
-            player1_cells: tuple,
-            player2_cells: tuple,
-            last_step: int,
-            depth: int,
-            maximize: bool = True,
-            alpha: int = -math.inf,
-            beta: int = math.inf,
+        self,
+        player1_cells: tuple,
+        player2_cells: tuple,
+        last_step: int,
+        depth: int,
+        maximize: bool = True,
+        alpha: int = -math.inf,
+        beta: int = math.inf,
     ) -> tuple:
         transp_key = player1_cells, player2_cells, depth, maximize
         move, lower_bound, upper_bound = -1, -math.inf, math.inf
@@ -167,6 +240,8 @@ class Mtd(AlphaBeta):
             alpha = max(alpha, lower_bound)
             beta = min(beta, upper_bound)
 
+        self._table_misses += 1
+
         best_move, best_score = super()._run(
             player1_cells, player2_cells, last_step, depth, maximize, alpha, beta
         )
@@ -179,75 +254,10 @@ class Mtd(AlphaBeta):
             self.transposition_table[transp_key] = best_move, best_score, upper_bound
         return best_move, best_score
 
-    def _get_possible_moves(self, player1: set, player2: set, last_step: int):
+    def get_possible_moves(self, player1: set, player2: set, last_step: int):
         ret = []
         if self._guess_step is not None:
             if self._guess_step not in player1 and self._guess_step not in player2:
                 ret.append(self._guess_step)
-        ret.extend(super()._get_possible_moves(player1, player2, last_step))
+        ret.extend(super().get_possible_moves(player1, player2, last_step))
         return ret
-
-
-def _distance(cell1, cell2):
-    x1, y1 = _get_row_col(cell1)
-    x2, y2 = _get_row_col(cell2)
-    return max(abs(x1 - x2), abs(y1 - y2))
-
-
-def check_winning_step(cells: set, step: int) -> bool:
-    r, c = _get_row_col(step)
-    return (
-            _check_direction(cells, r, c, 1, 0)
-            or _check_direction(cells, r, c, 0, 1)  # horizontal
-            or _check_direction(cells, r, c, 1, 1)  # vertical
-            or _check_direction(cells, r, c, 1, -1)  # diagonal  # reversed diagonal
-    )
-
-
-def _check_direction(cells: set, row: int, col: int, row_inc: int, col_inc: int) -> bool:
-    cnt = 1
-    r, c = row, col
-    for _ in range(1, 5):
-        r += row_inc
-        c += col_inc
-        if not (0 <= r < GRID_ROWS and 0 <= c < GRID_ROWS):
-            break
-        if _get_pos(r, c) not in cells:
-            break
-        cnt += 1
-
-    r, c = row, col
-    for _ in range(1, 5):
-        r -= row_inc
-        c -= col_inc
-        if not (0 <= r < GRID_ROWS and 0 <= c < GRID_ROWS):
-            break
-        if _get_pos(r, c) not in cells:
-            break
-        cnt += 1
-    return cnt >= 5
-
-
-def _get_neigh(pos):
-    r, c = _get_row_col(pos)
-    neigh = (
-        (r + 1, c),
-        (r + 1, c + 1),
-        (r, c + 1),
-        (r - 1, c + 1),
-        (r - 1, c),
-        (r - 1, c - 1),
-        (r, c - 1),
-        (r + 1, c - 1),
-    )
-    for (r, c) in neigh:
-        if 0 <= r < GRID_ROWS and 0 <= c < GRID_ROWS:
-            yield _get_pos(r, c)
-
-
-def _get_row_col(pos):
-    return pos // GRID_ROWS, pos % GRID_ROWS
-
-
-def _get_pos(r, c):
-    return r * GRID_ROWS + c

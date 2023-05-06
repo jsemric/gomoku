@@ -16,9 +16,9 @@ const GameStatus = {
 };
 
 export class CellData {
-  constructor(firstPlayer = null, highlighted = false) {
+  constructor(firstPlayer = null, backgroundColor = "white") {
     this.firstPlayer = firstPlayer;
-    this.highlighted = highlighted;
+    this.backgroundColor = backgroundColor;
   }
 }
 
@@ -30,6 +30,7 @@ class Game extends Component {
       opponentTurn: null,
       status: GameStatus.WAITING,
       cells: Array(gridrows * gridrows).fill(null),
+      prevCellIndex: null,
       isFirstPlayer: null,
     };
     this.handleMessage = this.handleMessage.bind(this);
@@ -76,29 +77,43 @@ class Game extends Component {
       if (undo === true) {
         let cells = this.state.cells;
         cells[cell] = null;
-        this.setState({ opponentTurn: !opponent, cells: cells });
+        // cells = this.clearCellsBackground();
+        this.setState({ opponentTurn: !opponent, cells: cells, prevCellIndex: null });
       } else if (opponent_left === true) {
         this.setState({ status: GameStatus.OPPONENT_LEFT });
       } else if (valid === true) {
         let cells = this.state.cells;
+        // clear highligh of the last step
+        const prevCellIndex = this.state.prevCellIndex;
+        if (prevCellIndex !== null) {
+          cells[prevCellIndex].backgroundColor = "white"
+        }
         const p = this.state.isFirstPlayer === opponent;
-        cells[cell] = new CellData(p);
+        cells[cell] = new CellData(p, "yellow");
         if (status === GameStatus.FINISHED) {
           const keys = [...Array(cells.length).keys()].filter((i) => {
             return cells[i] !== null && cells[i].firstPlayer === p;
           });
           const winningCells = this.getWinningCells(keys, cell);
           for (const i of winningCells) {
-            cells[i] = new CellData(p, true);
+            cells[i] = new CellData(p, "yellow");
           }
         }
         this.setState({
           opponentTurn: !opponent,
           status: status,
           cells: cells,
+          prevCellIndex: cell,
         });
       }
     }
+  }
+
+  clearCellsBackground(cells) {
+      for (const i of cells) {
+        cells[i] = new CellData(cells[i].firstPlayer, "white");
+      }
+      return cells;
   }
 
   getWinningCells(cells, last_cell) {
@@ -241,16 +256,15 @@ class Cell extends Component {
         </div>
       );
     }
-    const color = cell.highlighted ? "yellow" : "white";
     return (
       <div
         id={this.props.id}
         className={"grid-cell"}
         onClick={this.props.onClick}
-        style={{ backgroundColor: color }}
+        style={{ backgroundColor: cell.backgroundColor }}
       >
         {cell.firstPlayer === true
-          ? Circle(this.props, color)
+          ? Circle(this.props, cell.backgroundColor)
           : Cross(this.props)}
       </div>
     );
