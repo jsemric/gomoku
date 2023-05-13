@@ -1,5 +1,2 @@
-fastapi==0.73.0
-uvicorn[standard]==0.17.1
-aioredis==2.0.1
-celery[redis]==5.2.3
-cython
+fastapi==0.95.1
+uvicorn[standard]==0.22.0

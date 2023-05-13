@@ -1,6 +1,7 @@
 import math
 import logging
 import time
+from enum import Enum
 from functools import wraps, partial
 from collections import deque
 
@@ -8,6 +9,43 @@ logger = logging.getLogger(__name__)
 
 GRID_ROWS = 25
 GRID_SIZE = GRID_ROWS**2
+
+
+class GameStatus(str, Enum):
+    Playing = "PLAYING"
+    Draw = "DRAW"
+    Finished = "FINISHED"
+
+
+class GameError(Exception):
+    pass
+
+
+def validate(player_cells: set[int], opponent_cells: set[int], player_next_step: int):
+    if not player_cells and not opponent_cells and not player_next_step:
+        return
+    if any(not inside_interval_pos(cell) for cell in player_cells):
+        raise GameError("Player cell outside interval")
+    if any(not inside_interval_pos(cell) for cell in opponent_cells):
+        raise GameError("Opponent cell outside interval")
+    player_cells_num = len(player_cells)
+    opponent_cells_num = len(opponent_cells)
+    if player_cells_num != opponent_cells_num + 1:
+        raise GameError("Number of opponent cells {} must be one less than player cells {}".format(player_cells_num, opponent_cells_num))
+    if player_cells & opponent_cells:
+        raise GameError("Player and opponent cells overlap")
+    if not player_next_step:
+        raise GameError("Missing player next step")
+    if player_next_step not in player_cells:
+        raise GameError("Last step not in players cells")
+
+
+def get_status(player_cells: set[int], opponent: set[int], player_next_step: int):
+    if len(player_cells) + len(opponent) == GRID_SIZE:
+        return GameStatus.Draw
+    if player_next_step is not None and check_winning_step(player_cells, player_next_step):
+        return GameStatus.Finished
+    return GameStatus.Playing
 
 
 def timeit(fn=None, *, name=None):
