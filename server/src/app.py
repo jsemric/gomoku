@@ -44,7 +44,9 @@ def create_app():
         if status != GameStatus.Playing:
             raise HTTPException(400, f"Game status: {status.name}")
         strategy = Mtd()
-        opponent_next_step = strategy.run(opponent_cells, player_cells, player_last_step)
+        opponent_next_step = strategy.run(
+            opponent_cells, player_cells, player_last_step
+        )
         opponent_cells.add(opponent_next_step)
         status = get_status(opponent_cells, player_cells, opponent_next_step)
         return NextMoveResponse(status=status.name, next_step=opponent_next_step)

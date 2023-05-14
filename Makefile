@@ -11,7 +11,7 @@ start-client:
 
 .PHONY: fmt
 fmt:
-	@black $(SERVER_DIR)
+	@cd $(SERVER_DIR) && $(MAKE) fmt
 	@cd $(CLIENT_DIR) && yarn fmt
 
 .PHONY: test

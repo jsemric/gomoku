@@ -6,13 +6,9 @@ import "./Game.css";
 const gridrows = 25;
 
 const GameStatus = {
-  // first three must match server encoding
-  PLAYING: 0,
-  DRAW: 1,
-  FINISHED: 2,
-  WAITING: 3,
-  NOT_FOUND: 4,
-  OPPONENT_LEFT: 5,
+  PLAYING: "PLAYING",
+  VICTORY: "VICTORY",
+  DEFEAT: "DEFEAT",
 };
 
 export class CellData {
@@ -26,94 +22,93 @@ class Game extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      gameFound: null,
-      opponentTurn: null,
-      status: GameStatus.WAITING,
       cells: Array(gridrows * gridrows).fill(null),
-      prevCellIndex: null,
-      isFirstPlayer: null,
+      playerCells: [],
+      opponentCells: [],
+      status: GameStatus.PLAYING,
     };
-    this.handleMessage = this.handleMessage.bind(this);
     this.handleClick = this.handleClick.bind(this);
+    this.setCells = this.setCells.bind(this);
     this.undo = this.undo.bind(this);
   }
 
-  componentDidMount() {
-    const token = localStorage.getItem("token");
-    let params = new URLSearchParams(window.location.search);
-    params.append("q", token);
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(
-      `${proto}://${window.location.host}/ws/play/${
-        this.props.opponent
-      }?${params.toString()}`
-    );
-    socket.onopen = function (e) {
-      console.log("Opening ws connection");
-    };
-    socket.onmessage = this.handleMessage;
-    socket.onclose = function (e) {
-      console.log(`Closing ws connection with code ${e.code}`);
-    };
-    this.socket = socket;
+  isPlayerTurn() {
+    return this.state.playerCells.length == this.state.opponentCells.length;
   }
 
-  handleMessage(e) {
-    console.log(`received message ${e.data}`);
-    // first message is GameFound message
-    if (this.state.gameFound === null) {
-      const { found, first } = JSON.parse(e.data);
-      const status = found ? GameStatus.PLAYING : GameStatus.NOT_FOUND;
-      this.setState({
-        gameFound: found,
-        opponentTurn: !first,
-        status: status,
-        isFirstPlayer: first,
-      });
-    } else {
-      const { status, opponent, cell, valid, opponent_left, undo } = JSON.parse(
-        e.data
-      );
-      if (undo === true) {
-        let cells = this.state.cells;
-        cells[cell] = null;
-        // cells = this.clearCellsBackground();
-        this.setState({ opponentTurn: !opponent, cells: cells, prevCellIndex: null });
-      } else if (opponent_left === true) {
-        this.setState({ status: GameStatus.OPPONENT_LEFT });
-      } else if (valid === true) {
-        let cells = this.state.cells;
-        // clear highligh of the last step
-        const prevCellIndex = this.state.prevCellIndex;
-        if (prevCellIndex !== null) {
-          cells[prevCellIndex].backgroundColor = "white"
-        }
-        const p = this.state.isFirstPlayer === opponent;
-        cells[cell] = new CellData(p, "yellow");
-        if (status === GameStatus.FINISHED) {
-          const keys = [...Array(cells.length).keys()].filter((i) => {
-            return cells[i] !== null && cells[i].firstPlayer === p;
-          });
-          const winningCells = this.getWinningCells(keys, cell);
-          for (const i of winningCells) {
-            cells[i] = new CellData(p, "yellow");
-          }
-        }
-        this.setState({
-          opponentTurn: !opponent,
-          status: status,
-          cells: cells,
-          prevCellIndex: cell,
-        });
-      }
+  handleClick(pos) {
+    if (
+      this.state.cells[pos] === null &&
+      this.state.status === GameStatus.PLAYING &&
+      this.isPlayerTurn()
+    ) {
+      this.setCells(pos, false);
+      this.nextStep();
     }
   }
 
-  clearCellsBackground(cells) {
-      for (const i of cells) {
-        cells[i] = new CellData(cells[i].firstPlayer, "white");
+  nextStep() {
+    const body = {
+      player_cells: this.state.playerCells,
+      opponent_cells: this.state.opponentCells,
+      player_last_step:
+        this.state.playerCells[this.state.playerCells.length - 1],
+    };
+    fetch("/api/next-move", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    })
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        this.setCells(data.next_step, true);
+      });
+  }
+
+  setCells(cell, isOpponent) {
+    let cellList = isOpponent
+      ? this.state.opponentCells
+      : this.state.playerCells;
+    let cells = this.state.cells;
+    let status = this.state.status;
+    if (status != GameStatus.PLAYING) {
+      return;
+    }
+    // clear last cell
+    if (cellList.length > 0) {
+      const prevCellIndex = cellList[cellList.length - 1];
+      cells[prevCellIndex].backgroundColor = "white";
+    }
+    // set new cell
+    cells[cell] = new CellData(isOpponent, isOpponent ? "yellow" : "white");
+    cellList.push(cell);
+
+    // check and mark vicotry
+    const winningCells = this.getWinningCells(cellList, cell);
+    if (winningCells !== null) {
+      status = isOpponent ? GameStatus.DEFEAT : GameStatus.VICTORY;
+      for (const i of winningCells) {
+        cells[i] = new CellData(isOpponent, "yellow");
       }
-      return cells;
+    }
+
+    if (isOpponent) {
+      this.setState({ cells: cells, opponentCells: cellList, status: status });
+    } else {
+      this.setState({ cells: cells, playerCells: cellList, status: status });
+    }
+  }
+
+  clearCellsBackground(cells, isOpponent) {
+    for (const i of cells) {
+      cells[i] = new CellData(isOpponent, "white");
+    }
+    return cells;
   }
 
   getWinningCells(cells, last_cell) {
@@ -128,7 +123,7 @@ class Game extends Component {
       return x.end - x.start >= 4;
     });
     if (!winningDirections.length) {
-      return [];
+      return null;
     }
     const { start, end, inc } = winningDirections[0];
     let ret = [];
@@ -158,51 +153,62 @@ class Game extends Component {
     return { start: start, end: end, inc: inc };
   }
 
-  handleClick(i) {
-    if (
-      this.state.gameFound === true &&
-      this.state.cells[i] === null &&
-      !this.state.opponentTurn &&
-      !this.state.status !== GameStatus.FINISHED
-    ) {
-      this.socket.send(JSON.stringify({ cell: i }));
-    }
-  }
-
   undo() {
-    this.socket.send(JSON.stringify({ undo: true }));
+    if (!this.isPlayerTurn()) {
+      return;
+    }
+    let { cells, status, opponentCells, playerCells } = this.state;
+    // clear up highligh after defeat
+    if (status === GameStatus.DEFEAT) {
+      const winningCells = this.getWinningCells(
+        opponentCells,
+        opponentCells[opponentCells.length - 1]
+      );
+      winningCells.forEach((cell) => {
+        cells[cell] = new CellData(true, "white");
+      });
+    }
+    // remove 1 cell from player and opponent
+    if (playerCells.length > 0) {
+      cells[playerCells.pop()] = null;
+      cells[opponentCells.pop()] = null;
+    }
+    // highlight last opponent cell
+    if (opponentCells.length > 0) {
+      cells[opponentCells[opponentCells.length - 1]] = new CellData(
+        true,
+        "yellow"
+      );
+    }
+    this.setState({
+      status: GameStatus.PLAYING,
+      cells: cells,
+      opponentCells: opponentCells,
+      playerCells: playerCells,
+    });
   }
 
   render() {
-    const { status, opponentTurn } = this.state;
-    let alert = (
-      <Alert variant="info">
-        {opponentTurn ? "Opponent Turn" : "Your Turn"}
-      </Alert>
-    );
+    const status = this.state.status;
+    const isPlayerTurn = this.isPlayerTurn();
+    var alert;
     switch (status) {
-      case GameStatus.WAITING:
-        alert = <Alert variant="info">Waiting</Alert>;
+      case GameStatus.PLAYING:
+        alert = (
+          <Alert variant="info">
+            {isPlayerTurn ? "Your Turn" : "Opponent Turn"}
+          </Alert>
+        );
         break;
-      case GameStatus.NOT_FOUND:
-        alert = <Alert variant="warning">No player found</Alert>;
+      case GameStatus.DEFEAT:
+        alert = <Alert variant="danger">Defeat</Alert>;
         break;
-      case GameStatus.OPPONENT_LEFT:
-        alert = <Alert variant="success">Victory - Opponent Left</Alert>;
-        break;
-      case GameStatus.DRAW:
-        alert = <Alert variant="info">Draw</Alert>;
-        break;
-      case GameStatus.FINISHED:
-        if (opponentTurn) {
-          alert = <Alert variant="success">Victory</Alert>;
-        } else {
-          alert = <Alert variant="danger">Defeat</Alert>;
-        }
+      case GameStatus.VICTORY:
+        alert = <Alert variant="success">Victory</Alert>;
         break;
       default:
+        break;
     }
-
     return (
       <div>
         {alert}
@@ -244,7 +250,6 @@ class Board extends Component {
 class Cell extends Component {
   render() {
     const cell = this.props.cell;
-    console.log("Cell is ", cell);
     if (cell === null) {
       return (
         <div

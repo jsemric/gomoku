@@ -31,7 +31,11 @@ def validate(player_cells: set[int], opponent_cells: set[int], player_next_step:
     player_cells_num = len(player_cells)
     opponent_cells_num = len(opponent_cells)
     if player_cells_num != opponent_cells_num + 1:
-        raise GameError("Number of opponent cells {} must be one less than player cells {}".format(player_cells_num, opponent_cells_num))
+        raise GameError(
+            "Number of opponent cells {} must be one less than player cells {}".format(
+                player_cells_num, opponent_cells_num
+            )
+        )
     if player_cells & opponent_cells:
         raise GameError("Player and opponent cells overlap")
     if not player_next_step:
@@ -43,7 +47,9 @@ def validate(player_cells: set[int], opponent_cells: set[int], player_next_step:
 def get_status(player_cells: set[int], opponent: set[int], player_next_step: int):
     if len(player_cells) + len(opponent) == GRID_SIZE:
         return GameStatus.Draw
-    if player_next_step is not None and check_winning_step(player_cells, player_next_step):
+    if player_next_step is not None and check_winning_step(
+        player_cells, player_next_step
+    ):
         return GameStatus.Finished
     return GameStatus.Playing
 

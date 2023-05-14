@@ -10,7 +10,7 @@ x-common:
 services:
   server:
     <<: *common
-    command: ["uvicorn",  "src.app:setup_app", "--port", "8000", "--host", "0.0.0.0"]
+    command: ["uvicorn",  "src.app:create_app", "--port", "8000", "--host", "0.0.0.0"]
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000/healthz"]
       interval: 10s
