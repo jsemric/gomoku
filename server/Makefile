@@ -1,9 +1,9 @@
 SHELL := /bin/bash
 IMAGE=server
-PYTHON_BIN=../venv/bin/python
+PYTHON_BIN?=python
 
 build:
-	@cd src && ../$(PYTHON_BIN) setup.py build_ext --inplace
+	@cd src && $(PYTHON_BIN) setup.py build_ext --inplace
 
 start:
 	PYTHONPATH=src LOG_LEVEL=DEBUG $(PYTHON_BIN) -m uvicorn --host 0.0.0.0 --port 3001 --factory "src.app:create_app" --reload
