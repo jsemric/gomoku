@@ -15,7 +15,7 @@ from utils import (
 
 logger = logging.getLogger(__name__)
 
-WIN_SCORE = 1000
+WIN_SCORE = 1000.0
 DEFEAT_SCORE = -WIN_SCORE
 MAX_DEPTH = 5
 
@@ -23,7 +23,7 @@ MAX_DEPTH = 5
 class BaseStrategy(ABC):
     @abstractmethod
     def run(
-        self, player1: set[int], player2: set[int], last_step: int
+        self, player1: set[int], player2: set[int], last_step: Optional[int]
     ) -> Optional[int]:
         pass
 
@@ -32,7 +32,7 @@ class RandomStrategy(ABC):
     """Strategy using random cell selection."""
 
     def run(
-        self, player1: set[int], player2: set[int], last_step: int
+        self, player1: set[int], player2: set[int], last_step: Optional[int]
     ) -> Optional[int]:
         while True:
             next_pos = random.randint(0, GRID_SIZE - 1)
@@ -56,7 +56,7 @@ class DummyStrategy(RandomStrategy):
             raise ValueError("Row and column increment must be either 0, 1, or -1.")
 
     def run(
-        self, player1: set[int], player2: set[int], last_step: int
+        self, player1: set[int], player2: set[int], last_step: Optional[int]
     ) -> Optional[int]:
         self.next_pos = increment_cell_pos(self.next_pos, self.row_inc, self.col_inc)
         if self._taken(self.next_pos, player1, player2) or not inside_interval_pos(
@@ -76,7 +76,7 @@ class AlphaBeta(BaseStrategy):
         self,
         player1: set[int],
         player2: set[int],
-        last_step: int,
+        last_step: Optional[int],
     ) -> Optional[int]:
         if last_step is None:
             return random.randint(0, GRID_SIZE - 1)
@@ -174,7 +174,7 @@ class AlphaBeta(BaseStrategy):
             return score if maximize else -score
         if depth <= 0:
             # return steps to win the lowe the better
-            return -steps if maximize else steps
+            return float(-steps if maximize else steps)
         return None
 
 
@@ -190,7 +190,7 @@ class Mtd(AlphaBeta):
         self,
         player1: set[int],
         player2: set[int],
-        last_step: "Optional[int]",
+        last_step: Optional[int],
     ) -> Optional[int]:
         self.transposition_table.clear()
         self._table_hits = 0

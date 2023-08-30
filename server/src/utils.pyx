@@ -38,7 +38,7 @@ def validate(player_cells: set[int], opponent_cells: set[int], player_next_step:
         )
     if player_cells & opponent_cells:
         raise GameError("Player and opponent cells overlap")
-    if not player_next_step:
+    if player_next_step is None:
         raise GameError("Missing player next step")
     if player_next_step not in player_cells:
         raise GameError("Last step not in players cells")
