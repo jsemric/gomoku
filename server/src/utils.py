@@ -3,7 +3,6 @@ import logging
 import time
 from enum import Enum
 from functools import wraps, partial
-from collections import deque
 
 logger = logging.getLogger(__name__)
 
@@ -88,32 +87,30 @@ def steps_to_win(pos, player, opponent) -> int:
         curr_best = math.inf
         taken = 0
         to_take = 0
-        # go forth 4+5 fields
-        q = deque([])
+        # go forth 4+5 cells
+        left_cell = right_cell = row, col
         for _ in range(left + 5):
-            if inside_interval(row, col):
-                next_pos = get_pos(row, col)
-                if next_pos in opponent:
-                    q.clear()
-                    to_take = 0
-                    taken = 0
-                elif next_pos in player or next_pos == pos:
-                    q.append(True)
-                    taken += 1
-                else:
-                    q.append(False)
-                    to_take += 1
-
-                if taken + to_take == 5:
-                    curr_best = min(curr_best, to_take)
-                    if q.popleft() is True:
-                        taken -= 1
-                    else:
-                        to_take -= 1
-
-                row, col = increment_cell(row, col, row_inc, col_inc)
-            else:
+            if not inside_interval(*right_cell):
                 break
+
+            next_pos = get_pos(*right_cell)
+            if next_pos in opponent:
+                to_take = 0
+                taken = 0
+            elif next_pos in player or next_pos == pos:
+                taken += 1
+            else:
+                to_take += 1
+
+            if taken + to_take == 5:
+                curr_best = min(curr_best, to_take)
+                if get_pos(*left_cell) in player:
+                    taken -= 1
+                else:
+                    to_take -= 1
+                left_cell = increment_cell(*left_cell, row_inc, col_inc)
+
+            right_cell = increment_cell(*right_cell, row_inc, col_inc)
         return curr_best
 
     return min(
