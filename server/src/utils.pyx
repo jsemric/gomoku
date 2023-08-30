@@ -44,7 +44,7 @@ def validate(player_cells: set[int], opponent_cells: set[int], player_next_step:
         raise GameError("Last step not in players cells")
 
 
-def get_status(player_cells: set[int], opponent: set[int], player_next_step: Optional[int]) -> str:
+def get_status(player_cells: set[int], opponent: set[int], player_next_step: Optional[int]) -> GameStatus:
     if len(player_cells) + len(opponent) == GRID_SIZE:
         return GameStatus.Draw
     if player_next_step is not None and check_winning_step(
@@ -120,12 +120,6 @@ def steps_to_win(pos: int, player: set[int], opponent: set[int]) -> float:
         check_direction(1, 1),  # diagonal
         check_direction(1, -1),  # reversed diagonal
     )
-
-
-def distance(cell1, cell2):
-    x1, y1 = get_row_col(cell1)
-    x2, y2 = get_row_col(cell2)
-    return max(abs(x1 - x2), abs(y1 - y2))
 
 
 def check_winning_step(cells: set, step: int) -> bool:

@@ -9,19 +9,19 @@ CELL_INCREMENTS = set(itertools.permutations([-1, -1, 0, 1, 1], 2))
 
 @pytest.mark.parametrize("row_inc, col_inc", CELL_INCREMENTS)
 def test_dummy_strategy_beats_random(row_inc, col_inc):
-    _first_strategy_wins(DummyStrategy(row_inc, col_inc), RandomStrategy(), 20)
+    _second_strategy_wins(RandomStrategy(), DummyStrategy(row_inc, col_inc), 20)
 
 
 def test_mtd_strategy_beats_random():
-    _first_strategy_wins(Mtd(), RandomStrategy(), 20)
+    _second_strategy_wins(RandomStrategy(), Mtd(), 20)
 
 
 @pytest.mark.parametrize("row_inc, col_inc", CELL_INCREMENTS)
 def test_mtd_strategy_beats_dummy(row_inc, col_inc):
-    _first_strategy_wins(Mtd(), DummyStrategy(row_inc, col_inc), 20)
+    _second_strategy_wins(DummyStrategy(row_inc, col_inc), Mtd(), 20)
 
 
-def _first_strategy_wins(
+def _second_strategy_wins(
     strategy_a: BaseStrategy, strategy_b: BaseStrategy, max_steps: int
 ):
     def next_move(
@@ -43,12 +43,12 @@ def _first_strategy_wins(
             strategy_a, player_a, player_b, player_a_last_step
         )
         if status == GameStatus.Finished:
-            break
+            assert "First strategy should have not won"
         status, player_b_last_step = next_move(
             strategy_b, player_b, player_a, player_b_last_step
         )
         if status == GameStatus.Finished:
-            assert "First strategy should have won"
+            break
     assert status == GameStatus.Finished
 
 
@@ -61,6 +61,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     start = time.time()
     with PyCallGraph(output=GraphvizOutput()):
-        _first_strategy_wins(Mtd(), DummyStrategy(1, 0), 20)
+        _second_strategy_wins(DummyStrategy(1, 0), Mtd(), 20)
         duration = time.time() - start
     print("Duration: %5d s" % duration)
