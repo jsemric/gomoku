@@ -3,6 +3,7 @@ import logging
 import time
 from enum import Enum
 from functools import wraps, partial
+from typing import Optional, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class GameError(Exception):
     pass
 
 
-def validate(player_cells: set[int], opponent_cells: set[int], player_next_step: int):
+def validate(player_cells: set[int], opponent_cells: set[int], player_next_step: Optional[int]) -> None:
     if not player_cells and not opponent_cells and not player_next_step:
         return
     if any(not inside_interval_pos(cell) for cell in player_cells):
@@ -43,7 +44,7 @@ def validate(player_cells: set[int], opponent_cells: set[int], player_next_step:
         raise GameError("Last step not in players cells")
 
 
-def get_status(player_cells: set[int], opponent: set[int], player_next_step: int):
+def get_status(player_cells: set[int], opponent: set[int], player_next_step: Optional[int]) -> str:
     if len(player_cells) + len(opponent) == GRID_SIZE:
         return GameStatus.Draw
     if player_next_step is not None and check_winning_step(
@@ -69,7 +70,7 @@ def timeit(fn=None, *, name=None):
     return wrapper
 
 
-def steps_to_win(pos, player, opponent) -> int:
+def steps_to_win(pos: int, player: set[int], opponent: set[int]) -> float:
     """Return the number of cells to take to win or inf if not possible."""
 
     def check_direction(row_inc: int, col_inc: int) -> bool:
@@ -131,7 +132,7 @@ def check_winning_step(cells: set, step: int) -> bool:
     return steps_to_win(step, cells, set()) == 0
 
 
-def get_neigh(pos: tuple[int, int]):
+def get_neigh(pos: int) -> Generator[int, None, None]:
     r, c = get_row_col(pos)
     neigh = (
         (r + 1, c),

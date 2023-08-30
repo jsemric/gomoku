@@ -22,20 +22,24 @@ MAX_DEPTH = 5
 
 class BaseStrategy(ABC):
     @abstractmethod
-    def run(self, player1: set[int], player2: set[int], last_step: int) -> int:
+    def run(
+        self, player1: set[int], player2: set[int], last_step: int
+    ) -> Optional[int]:
         pass
 
 
 class RandomStrategy(ABC):
     """Strategy using random cell selection."""
 
-    def run(self, player1: set[int], player2: set[int], last_step: int) -> int:
+    def run(
+        self, player1: set[int], player2: set[int], last_step: int
+    ) -> Optional[int]:
         while True:
             next_pos = random.randint(0, GRID_SIZE - 1)
             if not self._taken(next_pos, player1, player2):
                 return next_pos
 
-    def _taken(self, pos, player1, player2):
+    def _taken(self, pos: int, player1: set[int], player2: set[int]) -> bool:
         return pos in player1 or pos in player2
 
 
@@ -47,11 +51,13 @@ class DummyStrategy(RandomStrategy):
     ) -> None:
         self.row_inc = row_inc
         self.col_inc = col_inc
-        self.next_pos = start_pos
+        self.next_pos: Optional[int] = start_pos
         if self.row_inc not in (1, -1, 0) and self.col_inc not in (1, -1, 0):
             raise ValueError("Row and column increment must be either 0, 1, or -1.")
 
-    def run(self, player1: set[int], player2: set[int], last_step: int) -> int:
+    def run(
+        self, player1: set[int], player2: set[int], last_step: int
+    ) -> Optional[int]:
         self.next_pos = increment_cell_pos(self.next_pos, self.row_inc, self.col_inc)
         if self._taken(self.next_pos, player1, player2) or not inside_interval_pos(
             self.next_pos
@@ -68,10 +74,10 @@ class AlphaBeta(BaseStrategy):
 
     def run(
         self,
-        player1,
-        player2,
-        last_step,
-    ) -> int:
+        player1: set[int],
+        player2: set[int],
+        last_step: int,
+    ) -> Optional[int]:
         if last_step is None:
             return random.randint(0, GRID_SIZE - 1)
         pos, score = self._run(
@@ -81,14 +87,14 @@ class AlphaBeta(BaseStrategy):
 
     def _run(
         self,
-        player1_cells: tuple,
-        player2_cells: tuple,
+        player1_cells: tuple[int, ...],
+        player2_cells: tuple[int, ...],
         last_step: int,
         depth: int,
         maximize: bool = True,
-        alpha: int = -math.inf,
-        beta: int = math.inf,
-    ) -> tuple:
+        alpha: float = -math.inf,
+        beta: float = math.inf,
+    ) -> tuple[Optional[int], float]:
         """Return step and score"""
         assert last_step in player1_cells or last_step in player2_cells
         player1 = set(player1_cells)  # maximizing
@@ -144,7 +150,9 @@ class AlphaBeta(BaseStrategy):
 
         return best_move, best_score
 
-    def get_possible_moves(self, player1: set, player2: set, last_step: int):
+    def get_possible_moves(
+        self, player1: set[int], player2: set[int], last_step: int
+    ) -> list[int]:
         moves = []
         for pos in player1 | player2:
             for n in get_neigh(pos):
@@ -154,12 +162,12 @@ class AlphaBeta(BaseStrategy):
 
     def _evaluate(
         self,
-        player: set,
-        opponent: set,
+        player: set[int],
+        opponent: set[int],
         last_step: Optional[int],
         maximize: bool,
         depth: int,
-    ):
+    ) -> Optional[float]:
         steps = steps_to_win(last_step, player, opponent)
         if steps == 0:
             score = WIN_SCORE - (self._max_depth - depth)
@@ -180,17 +188,17 @@ class Mtd(AlphaBeta):
     @timeit(name="mtd.run")
     def run(
         self,
-        player1: set,
-        player2: set,
+        player1: set[int],
+        player2: set[int],
         last_step: "Optional[int]",
-    ) -> int:
+    ) -> Optional[int]:
         self.transposition_table.clear()
         self._table_hits = 0
         self._table_misses = 0
         self._guess_step = None
         if last_step is None:
             return random.randint(0, GRID_SIZE - 1)
-        pos, score = None, 0
+        pos, score = None, 0.0
         for depth in range(0, self._max_depth):
             pos, score = self._mtd(player1, player2, last_step, score, depth)
             logger.info("Got step/score/depth %s/%s/%s", pos, score, depth)
@@ -203,7 +211,14 @@ class Mtd(AlphaBeta):
             )
         return pos
 
-    def _mtd(self, player1: set, player2: set, last_step: int, score: int, depth: int):
+    def _mtd(
+        self,
+        player1: set[int],
+        player2: set[int],
+        last_step: int,
+        score: float,
+        depth: int,
+    ) -> tuple[Optional[int], float]:
         move = None
         upper_bound = math.inf
         lower_bound = -math.inf
@@ -220,14 +235,14 @@ class Mtd(AlphaBeta):
 
     def _run(
         self,
-        player1_cells: tuple,
-        player2_cells: tuple,
+        player1_cells: tuple[int, ...],
+        player2_cells: tuple[int, ...],
         last_step: int,
         depth: int,
         maximize: bool = True,
-        alpha: int = -math.inf,
-        beta: int = math.inf,
-    ) -> tuple:
+        alpha: float = -math.inf,
+        beta: float = math.inf,
+    ) -> tuple[Optional[int], float]:
         transp_key = player1_cells, player2_cells, depth, maximize
         move, lower_bound, upper_bound = -1, -math.inf, math.inf
         if transp_key in self.transposition_table:
@@ -254,7 +269,9 @@ class Mtd(AlphaBeta):
             self.transposition_table[transp_key] = best_move, best_score, upper_bound
         return best_move, best_score
 
-    def get_possible_moves(self, player1: set, player2: set, last_step: int):
+    def get_possible_moves(
+        self, player1: set[int], player2: set[int], last_step: int
+    ) -> list[int]:
         ret = []
         if self._guess_step is not None:
             if self._guess_step not in player1 and self._guess_step not in player2:

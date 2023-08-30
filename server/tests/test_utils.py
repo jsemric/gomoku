@@ -63,5 +63,5 @@ def test_victory(cells):
 
 def test_pos_row_cols():
     cells = {27, 52, 77, 102, 127}
-    cells_converted = frozenset(get_row_col_all(cells))
-    assert get_pos_all(cells_converted) == frozenset(cells)
+    cells_converted = get_row_col_all(cells)
+    assert frozenset(get_pos_all(cells_converted)) == frozenset(cells)

@@ -1,6 +1,6 @@
 FROM python:3.10-slim-bullseye
 
-RUN apt-get update -y && apt-get install -y curl
+RUN apt-get update -y && apt-get install -y curl gcc
 RUN useradd -m apiuser
 USER apiuser
 WORKDIR /home/apiuser
@@ -12,4 +12,5 @@ RUN pip install --upgrade pip && \
     rm -rf .cache
 COPY --chown=apiuser:apiuser src ./src
 COPY --chown=apiuser:apiuser tests ./tests
+RUN cd src && python setup.py build_ext --inplace
 ENV PYTHONPATH=/home/apiuser/src

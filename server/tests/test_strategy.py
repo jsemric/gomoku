@@ -9,7 +9,7 @@ CELL_INCREMENTS = set(itertools.permutations([-1, -1, 0, 1, 1], 2))
 
 @pytest.mark.parametrize("row_inc, col_inc", CELL_INCREMENTS)
 def test_dummy_strategy_beats_random(row_inc, col_inc):
-    _first_strategy_wins(DummyStrategy(row_inc, col_inc), RandomStrategy(), 10)
+    _first_strategy_wins(DummyStrategy(row_inc, col_inc), RandomStrategy(), 20)
 
 
 def test_mtd_strategy_beats_random():
