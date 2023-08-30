@@ -14,3 +14,5 @@ COPY --chown=apiuser:apiuser src ./src
 COPY --chown=apiuser:apiuser tests ./tests
 RUN cd src && python setup.py build_ext --inplace
 ENV PYTHONPATH=/home/apiuser/src
+EXPOSE 8000
+CMD ["uvicorn",  "src.app:create_app", "--port", "8000", "--host", "0.0.0.0"]

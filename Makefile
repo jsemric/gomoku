@@ -17,3 +17,11 @@ fmt:
 .PHONY: test
 test:
 	@cd $(SERVER_DIR) && $(MAKE) test
+
+.PHONY: start
+start:
+	@docker compose up --build --remove-orphans -d
+
+.PHONY: stop
+stop:
+	@docker compose down --remove-orphans
