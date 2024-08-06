@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 IMAGE=server
-PYTHON_BIN?=python
+PYTHON_BIN?=python3
 
 build:
 	@cd src && $(PYTHON_BIN) setup.py build_ext --inplace

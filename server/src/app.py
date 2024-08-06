@@ -8,8 +8,15 @@ from pydantic import BaseModel
 from strategy import Mtd
 from utils import get_status, validate, GameError, GameStatus
 
+HEALTH_ENDPOINTS = ["/", "/healthz"]
 logger = logging.getLogger(__name__)
 
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.args and len(record.args) >= 3 and record.args[2] not in HEALTH_ENDPOINTS
+
+# Add filter to the logger
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 class NextMoveRequest(BaseModel):
     player_cells: list[int]
@@ -24,6 +31,7 @@ class NextMoveResponse(BaseModel):
 
 def create_app():
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
     app = FastAPI()
 
     @app.get("/")
@@ -49,6 +57,8 @@ def create_app():
         )
         opponent_cells.add(opponent_next_step)
         status = get_status(opponent_cells, player_cells, opponent_next_step)
+        if status == GameStatus.Finished:
+            logger.info("AI won the game")
         return NextMoveResponse(status=status.name, next_step=opponent_next_step)
 
     return app

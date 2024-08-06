@@ -19,8 +19,9 @@ test:
 	@cd $(SERVER_DIR) && $(MAKE) test
 
 .PHONY: start
-start:
+start: stop
 	@docker compose up --build --remove-orphans -d
+	@firefox http://localhost:80
 
 .PHONY: stop
 stop:

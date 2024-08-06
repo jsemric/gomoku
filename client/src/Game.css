@@ -14,3 +14,16 @@
   height: 4%;
   display: inline-block;
 }
+
+.btn {
+  display: inline-block;
+  padding: 5px;
+}
+
+.padded {
+  padding: 5px;
+}
+
+.center {
+  margin: auto;
+}

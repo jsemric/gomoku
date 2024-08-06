@@ -18,18 +18,27 @@ export class CellData {
   }
 }
 
-class Game extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
+function initializeState() {
+  return {
       cells: Array(gridrows * gridrows).fill(null),
       playerCells: [],
       opponentCells: [],
       status: GameStatus.PLAYING,
-    };
+  }
+}
+
+class Game extends Component {
+  constructor(props) {
+    super(props);
+    this.state = initializeState()
     this.handleClick = this.handleClick.bind(this);
     this.setCells = this.setCells.bind(this);
     this.undo = this.undo.bind(this);
+    this.newGame = this.newGame.bind(this);
+  }
+
+  newGame() {
+    this.setState(initializeState())
   }
 
   isPlayerTurn() {
@@ -211,12 +220,17 @@ class Game extends Component {
     }
     return (
       <div>
-        {alert}
-        <div>
-          <Board cells={this.state.cells} onClick={this.handleClick} />
+        <div class="padded">
+          {alert}
         </div>
-        <div>
+        <div class="btn">
           <Button onClick={this.undo}>Undo</Button>
+        </div>
+        <div class="btn">
+          <Button onClick={this.newGame}>New Game</Button>
+        </div>
+        <div class="center">
+          <Board cells={this.state.cells} onClick={this.handleClick} />
         </div>
       </div>
     );
