@@ -1,3 +1,4 @@
+import array
 import pytest
 import math
 
@@ -23,7 +24,7 @@ N = GRID_ROWS
     ],
 )
 def test_steps_to_win(pos, player, opponent, expected):
-    steps = steps_to_win(pos, player, opponent)
+    steps = steps_to_win(pos, _prepare_grid(player, opponent), 1, 2)
     assert steps == expected
 
 
@@ -41,7 +42,7 @@ def test_steps_to_win(pos, player, opponent, expected):
 def test_no_victory(cells):
     cells = get_pos_all(cells)
     for i in cells:
-        assert check_winning_step(cells, i) is False
+        assert check_winning_step(_prepare_grid(cells, []), i, 1) is False
 
 
 @pytest.mark.parametrize(
@@ -58,10 +59,21 @@ def test_no_victory(cells):
 def test_victory(cells):
     cells = get_pos_all(cells)
     for i in cells:
-        assert check_winning_step(cells, i) is True, f"Last step: {i}"
+        assert (
+            check_winning_step(_prepare_grid(cells, []), i, 1) is True
+        ), f"Last step: {i}"
 
 
 def test_pos_row_cols():
     cells = {27, 52, 77, 102, 127}
     cells_converted = get_row_col_all(cells)
     assert frozenset(get_pos_all(cells_converted)) == frozenset(cells)
+
+
+def _prepare_grid(p1, p2):
+    grid = array.array("B", [0] * N**2)
+    for i in p1:
+        grid[i] = 1
+    for i in p2:
+        grid[i] = 2
+    return grid

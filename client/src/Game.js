@@ -60,8 +60,6 @@ class Game extends Component {
     const body = {
       player_cells: this.state.playerCells,
       opponent_cells: this.state.opponentCells,
-      player_last_step:
-        this.state.playerCells[this.state.playerCells.length - 1],
     };
     fetch("/api/next-move", {
       method: "POST",
@@ -75,7 +73,7 @@ class Game extends Component {
         return response.json();
       })
       .then((data) => {
-        this.setCells(data.next_step, true);
+        this.setCells(data.next_move, true);
       });
   }
 

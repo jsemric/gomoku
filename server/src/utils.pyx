@@ -1,4 +1,5 @@
 import math
+import array
 import logging
 import time
 from enum import Enum
@@ -11,66 +12,7 @@ GRID_ROWS = 25
 GRID_SIZE = GRID_ROWS**2
 
 
-class GameStatus(str, Enum):
-    Playing = "PLAYING"
-    Draw = "DRAW"
-    Finished = "FINISHED"
-
-
-class GameError(Exception):
-    pass
-
-
-def validate(player_cells: set[int], opponent_cells: set[int], player_next_step: Optional[int]) -> None:
-    if not player_cells and not opponent_cells and not player_next_step:
-        return
-    if any(not inside_interval_pos(cell) for cell in player_cells):
-        raise GameError("Player cell outside interval")
-    if any(not inside_interval_pos(cell) for cell in opponent_cells):
-        raise GameError("Opponent cell outside interval")
-    player_cells_num = len(player_cells)
-    opponent_cells_num = len(opponent_cells)
-    if player_cells_num != opponent_cells_num + 1:
-        raise GameError(
-            "Number of opponent cells {} must be one less than player cells {}".format(
-                player_cells_num, opponent_cells_num
-            )
-        )
-    if player_cells & opponent_cells:
-        raise GameError("Player and opponent cells overlap")
-    if player_next_step is None:
-        raise GameError("Missing player next step")
-    if player_next_step not in player_cells:
-        raise GameError("Last step not in players cells")
-
-
-def get_status(player_cells: set[int], opponent: set[int], player_next_step: Optional[int]) -> GameStatus:
-    if len(player_cells) + len(opponent) == GRID_SIZE:
-        return GameStatus.Draw
-    if player_next_step is not None and check_winning_step(
-        player_cells, player_next_step
-    ):
-        return GameStatus.Finished
-    return GameStatus.Playing
-
-
-def timeit(fn=None, *, name=None):
-    if fn is None:
-        return partial(timeit, name=name)
-    name = fn.__name__
-
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        res = fn(*args, **kwargs)
-        duration = time.time() - start
-        logger.info("Running %s took %.3f (s)", name, duration)
-        return res
-
-    return wrapper
-
-
-def steps_to_win(pos: int, player: set[int], opponent: set[int]) -> float:
+def steps_to_win(pos: int, grid: array.array, player: int, opponent: int) -> float:
     """Return the number of cells to take to win or inf if not possible."""
 
     def check_direction(row_inc: int, col_inc: int) -> bool:
@@ -95,17 +37,17 @@ def steps_to_win(pos: int, player: set[int], opponent: set[int]) -> float:
                 break
 
             next_pos = get_pos(*right_cell)
-            if next_pos in opponent:
+            if grid[next_pos] == opponent:
                 to_take = 0
                 taken = 0
-            elif next_pos in player or next_pos == pos:
+            elif grid[next_pos] == player or next_pos == pos:
                 taken += 1
             else:
                 to_take += 1
 
             if taken + to_take == 5:
                 curr_best = min(curr_best, to_take)
-                if get_pos(*left_cell) in player:
+                if grid[get_pos(*left_cell)] == player:
                     taken -= 1
                 else:
                     to_take -= 1
@@ -122,8 +64,8 @@ def steps_to_win(pos: int, player: set[int], opponent: set[int]) -> float:
     )
 
 
-def check_winning_step(cells: set, step: int) -> bool:
-    return steps_to_win(step, cells, set()) == 0
+def check_winning_step(grid: array.array, step: int, player: int) -> bool:
+    return steps_to_win(step, grid, player, 33) == 0
 
 
 def get_neigh(pos: int) -> Generator[int, None, None]:

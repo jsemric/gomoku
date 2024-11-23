@@ -6,31 +6,40 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from strategy import Mtd
-from utils import get_status, validate, GameError, GameStatus
+from game import validate, GameError, GameStatus, GameState
 
 HEALTH_ENDPOINTS = ["/", "/healthz"]
 logger = logging.getLogger(__name__)
 
+
 class EndpointFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return record.args and len(record.args) >= 3 and record.args[2] not in HEALTH_ENDPOINTS
+        return (
+            record.args
+            and len(record.args) >= 3
+            and record.args[2] not in HEALTH_ENDPOINTS
+        )
+
 
 # Add filter to the logger
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
+
 class NextMoveRequest(BaseModel):
     player_cells: list[int]
     opponent_cells: list[int]
-    player_last_step: Optional[int] = None
 
 
 class NextMoveResponse(BaseModel):
     status: str
-    next_step: Optional[int] = None
+    next_move: Optional[int] = None
 
 
 def create_app():
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    logging.basicConfig(
+        level=os.getenv("LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s %(funcName)s %(message)s",
+    )
     logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
     app = FastAPI()
 
@@ -41,24 +50,20 @@ def create_app():
 
     @app.post("/api/next-move")
     async def next_move(game: NextMoveRequest):
-        player_cells = set(game.player_cells)
-        opponent_cells = set(game.opponent_cells)
-        player_last_step = game.player_last_step
+        player_cells = game.player_cells
+        opponent_cells = game.opponent_cells
         try:
-            validate(player_cells, opponent_cells, player_last_step)
+            validate(set(player_cells), set(opponent_cells))
         except GameError as err:
             raise HTTPException(400, str(err))
-        status = get_status(player_cells, opponent_cells, player_last_step)
-        if status != GameStatus.Playing:
-            raise HTTPException(400, f"Game status: {status.name}")
+        gs = GameState.create(player_cells, opponent_cells)
+        if gs.status != GameStatus.Playing:
+            raise HTTPException(400, f"Game status: {gs.status.name}")
         strategy = Mtd()
-        opponent_next_step = strategy.run(
-            opponent_cells, player_cells, player_last_step
-        )
-        opponent_cells.add(opponent_next_step)
-        status = get_status(opponent_cells, player_cells, opponent_next_step)
-        if status == GameStatus.Finished:
+        opponent_next_step = strategy.run(gs)
+        gs.add_cell(opponent_next_step)
+        if gs.status == GameStatus.Finished:
             logger.info("AI won the game")
-        return NextMoveResponse(status=status.name, next_step=opponent_next_step)
+        return NextMoveResponse(status=gs.status.name, next_move=opponent_next_step)
 
     return app

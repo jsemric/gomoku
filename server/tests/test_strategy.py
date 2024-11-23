@@ -1,8 +1,8 @@
 import pytest
 import itertools
 
-from utils import get_status, GameStatus
-from strategy import Mtd, RandomStrategy, DummyStrategy, BaseStrategy
+from game import GameState, GameStatus
+from strategy import Mtd, AlphaBeta, RandomStrategy, DummyStrategy, BaseStrategy
 
 CELL_INCREMENTS = set(itertools.permutations([-1, -1, 0, 1, 1], 2))
 
@@ -10,6 +10,16 @@ CELL_INCREMENTS = set(itertools.permutations([-1, -1, 0, 1, 1], 2))
 @pytest.mark.parametrize("row_inc, col_inc", CELL_INCREMENTS)
 def test_dummy_strategy_beats_random(row_inc, col_inc):
     _second_strategy_wins(RandomStrategy(), DummyStrategy(row_inc, col_inc), 20)
+
+
+def test_alphabeta_strategy_beats_random():
+    _second_strategy_wins(RandomStrategy(), AlphaBeta(3), 20)
+
+
+@pytest.mark.skip("Revisit later")
+@pytest.mark.parametrize("row_inc, col_inc", CELL_INCREMENTS)
+def test_alphabeta_strategy_beats_dummy(row_inc, col_inc):
+    _second_strategy_wins(DummyStrategy(row_inc, col_inc), AlphaBeta(5), 20)
 
 
 def test_mtd_strategy_beats_random():
@@ -24,32 +34,16 @@ def test_mtd_strategy_beats_dummy(row_inc, col_inc):
 def _second_strategy_wins(
     strategy_a: BaseStrategy, strategy_b: BaseStrategy, max_steps: int
 ):
-    def next_move(
-        strategy: BaseStrategy, player: set[int], opponent: set[int], last_step: int
-    ):
-        next_step = strategy.run(player, opponent, last_step)
-        status = get_status(player, opponent, next_step)
-        player.add(next_step)
-        if status == GameStatus.Draw:
-            assert False, "Game draw unexpectedly"
-        return status, next_step
-
-    player_a = set()
-    player_b = set()
-    player_a_last_step = None
-    player_b_last_step = None
+    gs = GameState.create([], [])
     for _ in range(max_steps):
-        status, player_a_last_step = next_move(
-            strategy_a, player_a, player_b, player_a_last_step
-        )
-        if status == GameStatus.Finished:
-            assert "First strategy should have not won"
-        status, player_b_last_step = next_move(
-            strategy_b, player_b, player_a, player_b_last_step
-        )
-        if status == GameStatus.Finished:
+        cell = strategy_a.run(gs)
+        gs.add_cell(cell)
+        assert gs.status == GameStatus.Playing, "First strategy should have lost"
+        cell = strategy_b.run(gs)
+        gs.add_cell(cell)
+        if gs.status == GameStatus.Finished:
             break
-    assert status == GameStatus.Finished
+    assert gs.status == GameStatus.Finished, "Second strategy should have won"
 
 
 if __name__ == "__main__":
