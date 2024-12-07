@@ -13,7 +13,8 @@ RUN pip install --upgrade pip && \
 COPY --chown=apiuser:apiuser setup.py ./
 COPY --chown=apiuser:apiuser gomoku ./gomoku
 COPY --chown=apiuser:apiuser tests ./tests
-RUN python setup.py build_ext
+RUN python setup.py build_ext --inplace
+RUN mv utils.cpython* gomoku
 ENV PYTHONPATH=/home/apiuser/gomoku
 EXPOSE 8000
 CMD ["uvicorn",  "gomoku.app:create_app", "--port", "8000", "--host", "0.0.0.0"]
