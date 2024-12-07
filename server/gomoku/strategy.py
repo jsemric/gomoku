@@ -3,10 +3,9 @@ import logging
 import math
 from typing import Optional
 from abc import ABC, abstractmethod
-from game import GameState
-from timer import timeit
 
-from utils import (
+from gomoku.game import GameState
+from gomoku.utils import (
     GRID_SIZE,
     steps_to_win,
     get_neigh,
@@ -58,7 +57,7 @@ class DummyStrategy(BaseStrategy):
 
     def run(self, gs: GameState) -> Optional[int]:
         self.next_pos = increment_cell_pos(self.next_pos, self.row_inc, self.col_inc)
-        if gs.is_taken(self.next_pos) or not inside_interval_pos(self.next_pos):
+        if not inside_interval_pos(self.next_pos) or gs.is_taken(self.next_pos):
             self.next_pos = _random_cell(gs)
         return self.next_pos
 
@@ -101,10 +100,10 @@ class AlphaBeta(BaseStrategy):
         alpha: float = -math.inf,
         beta: float = math.inf,
     ) -> tuple[Optional[int], float]:
-        transp_key = gs.grid.tobytes(), depth, maximize
+        key = gs.grid.tobytes(), depth, maximize
         move, lower_bound, upper_bound = -1, -math.inf, math.inf
-        if transp_key in self._memory:
-            move, lower_bound, upper_bound = self._memory[transp_key]
+        if key in self._memory:
+            move, lower_bound, upper_bound = self._memory[key]
             self._memory_hits += 1
             if lower_bound >= beta:
                 return move, lower_bound
@@ -118,11 +117,11 @@ class AlphaBeta(BaseStrategy):
         best_move, best_score = self._search(gs, depth, maximize, alpha, beta)
 
         if best_score <= alpha:
-            self._memory[transp_key] = best_move, lower_bound, best_score
+            self._memory[key] = best_move, lower_bound, best_score
         if beta > best_score > alpha:
-            self._memory[transp_key] = best_move, best_score, best_score
+            self._memory[key] = best_move, best_score, best_score
         if best_score >= beta:
-            self._memory[transp_key] = best_move, best_score, upper_bound
+            self._memory[key] = best_move, best_score, upper_bound
         return best_move, best_score
 
     def _search(
@@ -137,11 +136,7 @@ class AlphaBeta(BaseStrategy):
         assert gs.grid[gs.last_step] == gs.last_player
 
         # check other player victory
-        score = self._evaluate(
-            gs,
-            not maximize,
-            depth,
-        )
+        score = self._evaluate(gs, not maximize, depth)
         if score is not None:
             return None, score
 

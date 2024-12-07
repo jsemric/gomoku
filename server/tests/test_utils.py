@@ -2,7 +2,7 @@ import array
 import pytest
 import math
 
-from utils import (
+from gomoku.utils import (
     steps_to_win,
     check_winning_step,
     GRID_ROWS,

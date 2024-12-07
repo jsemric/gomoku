@@ -5,8 +5,8 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from strategy import Mtd
-from game import validate, GameError, GameStatus, GameState
+from gomoku.strategy import Mtd
+from gomoku.game import validate, GameError, GameStatus, GameState
 
 HEALTH_ENDPOINTS = ["/", "/healthz"]
 logger = logging.getLogger(__name__)

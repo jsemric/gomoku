@@ -1,8 +1,8 @@
 import pytest
 import itertools
 
-from game import GameState, GameStatus
-from strategy import Mtd, AlphaBeta, RandomStrategy, DummyStrategy, BaseStrategy
+from gomoku.game import GameState, GameStatus
+from gomoku.strategy import Mtd, AlphaBeta, RandomStrategy, DummyStrategy, BaseStrategy
 
 CELL_INCREMENTS = set(itertools.permutations([-1, -1, 0, 1, 1], 2))
 
@@ -16,10 +16,10 @@ def test_alphabeta_strategy_beats_random():
     _second_strategy_wins(RandomStrategy(), AlphaBeta(3), 20)
 
 
-@pytest.mark.skip("Revisit later")
+@pytest.mark.skip("Slow test")
 @pytest.mark.parametrize("row_inc, col_inc", CELL_INCREMENTS)
 def test_alphabeta_strategy_beats_dummy(row_inc, col_inc):
-    _second_strategy_wins(DummyStrategy(row_inc, col_inc), AlphaBeta(5), 20)
+    _second_strategy_wins(DummyStrategy(row_inc, col_inc), AlphaBeta(4), 20)
 
 
 def test_mtd_strategy_beats_random():

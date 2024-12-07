@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from game import GameStatus
-from app import create_app, NextMoveRequest
+from gomoku.game import GameStatus
+from gomoku.app import create_app, NextMoveRequest
 
 
 @pytest.fixture

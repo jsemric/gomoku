@@ -3,7 +3,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Generator
-from utils import GRID_SIZE, inside_interval_pos, check_winning_step
+
+from gomoku.utils import GRID_SIZE, inside_interval_pos, check_winning_step
 
 
 class GameStatus(str, Enum):
