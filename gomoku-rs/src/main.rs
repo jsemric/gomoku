@@ -1,6 +1,6 @@
 use gomoku_rs::server::serve;
-use tokio;
 use std::env;
+use tokio;
 
 #[tokio::main]
 async fn main() {

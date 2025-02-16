@@ -1,3 +1,3 @@
 pub mod game;
-pub mod strategy;
 pub mod server;
+pub mod strategy;

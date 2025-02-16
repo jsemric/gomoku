@@ -1,13 +1,13 @@
 use crate::game;
-use rand::Rng;
 use core::f32;
+use rand::Rng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
 const WIN_SCORE: i32 = 10000;
 
 pub trait Strategy {
-    fn run(& mut self, g: &game::Game) -> usize;
+    fn run(&mut self, g: &game::Game) -> usize;
 }
 
 pub struct RandomStrategy;
@@ -26,7 +26,11 @@ pub struct DummyStrategy {
 
 impl DummyStrategy {
     pub fn new(row_inc: i32, col_inc: i32) -> Self {
-        Self {row_inc, col_inc: col_inc, last_pos: None}
+        Self {
+            row_inc,
+            col_inc: col_inc,
+            last_pos: None,
+        }
     }
 }
 
@@ -41,7 +45,12 @@ impl Strategy for DummyStrategy {
             Some(pos) => {
                 let cell = game::increment_cell(game::get_row_col(pos), self.row_inc, self.col_inc);
                 let mut pos;
-                if !game::is_inside(cell) || g.is_taken({pos = game::get_pos(cell); pos}) {
+                if !game::is_inside(cell)
+                    || g.is_taken({
+                        pos = game::get_pos(cell);
+                        pos
+                    })
+                {
                     pos = random_pos(g);
                 }
                 self.last_pos.replace(pos);
@@ -50,7 +59,6 @@ impl Strategy for DummyStrategy {
         }
     }
 }
-
 
 pub struct AlphaBeta {
     max_depth: i32,
@@ -67,13 +75,14 @@ impl Strategy for AlphaBeta {
             return random_pos(&gs);
         }
         if !self.use_mtd {
-            let res = self.memorized_search(& mut gs, self.max_depth, true, -f32::INFINITY, f32::INFINITY);
+            let res =
+                self.memorized_search(&mut gs, self.max_depth, true, -f32::INFINITY, f32::INFINITY);
             return res.0.unwrap();
         }
         let mut score = 0.0;
         let mut pos: Option<usize> = None;
         for depth in 1..=self.max_depth {
-            (pos, score) = self.mtd(& mut gs, score, depth);
+            (pos, score) = self.mtd(&mut gs, score, depth);
             self.guess = pos;
         }
         return pos.unwrap();
@@ -82,15 +91,24 @@ impl Strategy for AlphaBeta {
 
 impl AlphaBeta {
     pub fn new(max_depth: i32, use_mtd: bool) -> Self {
-        Self {max_depth, use_mtd, memory: HashMap::new(), guess: None}
+        Self {
+            max_depth,
+            use_mtd,
+            memory: HashMap::new(),
+            guess: None,
+        }
     }
 
-    fn mtd(& mut self,  g: & mut game::Game, mut score: f32, depth: i32) -> (Option<usize>, f32) {
+    fn mtd(&mut self, g: &mut game::Game, mut score: f32, depth: i32) -> (Option<usize>, f32) {
         let mut pos: Option<usize> = None;
         let mut upper_bound = f32::INFINITY;
         let mut lower_bound = -f32::INFINITY;
         while lower_bound < upper_bound {
-            let beta = if score == lower_bound {score + 1.0 } else {score};
+            let beta = if score == lower_bound {
+                score + 1.0
+            } else {
+                score
+            };
             (pos, score) = self.memorized_search(g, depth, true, beta - 1.0, beta);
             if score < beta {
                 upper_bound = score;
@@ -101,12 +119,19 @@ impl AlphaBeta {
         return (pos, score);
     }
 
-    fn reset(& mut self) {
+    fn reset(&mut self) {
         self.guess = None;
         self.memory.clear();
     }
 
-    fn memorized_search(& mut self,  g: & mut game::Game, depth: i32, maximize: bool, mut alpha: f32, mut beta: f32) -> (Option<usize>, f32) {
+    fn memorized_search(
+        &mut self,
+        g: &mut game::Game,
+        depth: i32,
+        maximize: bool,
+        mut alpha: f32,
+        mut beta: f32,
+    ) -> (Option<usize>, f32) {
         let (mut pos, mut lower_bound, mut upper_bound) = (None, -f32::INFINITY, f32::INFINITY);
         let key = (g.grid, depth, maximize);
         if self.use_mtd && self.memory.contains_key(&key) {
@@ -137,7 +162,14 @@ impl AlphaBeta {
         return (best_pos, best_score);
     }
 
-    fn search(& mut self, g: & mut game::Game, depth: i32, maximize: bool, mut alpha: f32, mut beta: f32) -> (Option<usize>, f32) {
+    fn search(
+        &mut self,
+        g: &mut game::Game,
+        depth: i32,
+        maximize: bool,
+        mut alpha: f32,
+        mut beta: f32,
+    ) -> (Option<usize>, f32) {
         if g.grid[g.last_step().unwrap()] != g.last_player() {
             print_grid(g);
         }
@@ -214,24 +246,31 @@ impl AlphaBeta {
         return result;
     }
 
-    fn evaluate(& self, g: &game::Game, depth: i32, maximize: bool) -> Option<f32> {
-        let (p1, p2) = if maximize {(game::PLAYER_2, game::PLAYER_1)} else {(game::PLAYER_1, game::PLAYER_2)};
+    fn evaluate(&self, g: &game::Game, depth: i32, maximize: bool) -> Option<f32> {
+        let (p1, p2) = if maximize {
+            (game::PLAYER_2, game::PLAYER_1)
+        } else {
+            (game::PLAYER_1, game::PLAYER_2)
+        };
         let steps = game::steps_to_win(g.last_step()?, &g.grid, p1, p2);
         if steps == 0.0 {
-            let win_score : f32 = (WIN_SCORE + depth) as f32;
-            return Some(if maximize {win_score} else {-win_score});
+            let win_score: f32 = (WIN_SCORE + depth) as f32;
+            return Some(if maximize { win_score } else { -win_score });
         }
         if depth <= 0 {
-            return Some(if maximize {-steps} else {steps});
+            return Some(if maximize { -steps } else { steps });
         }
         return None;
     }
-
 }
 
 fn random_pos(g: &game::Game) -> usize {
     let pos = rand::thread_rng().gen_range(0..game::GRID_SIZE);
-    if g.is_taken(pos) { random_pos(g) } else { pos }
+    if g.is_taken(pos) {
+        random_pos(g)
+    } else {
+        pos
+    }
 }
 
 pub fn print_grid(g: &game::Game) {
@@ -240,9 +279,9 @@ pub fn print_grid(g: &game::Game) {
         for j in 0..game::GRID_ROWS {
             let val = g.grid[i * game::GRID_ROWS + j];
             let x = match val {
-                game::PLAYER_1 => {'X'},
-                game::PLAYER_2 => {'O'},
-                _ => {'.'}
+                game::PLAYER_1 => 'X',
+                game::PLAYER_2 => 'O',
+                _ => '.',
             };
             buf.push(x);
         }

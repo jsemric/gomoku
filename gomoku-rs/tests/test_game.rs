@@ -1,6 +1,5 @@
 use gomoku_rs::game::{self, check_winning_step, PLAYER_1};
 
-
 #[test]
 fn empty_game() {
     let g = game::Game::default();
@@ -36,7 +35,12 @@ fn steps_to_win() {
         (0, vec![0], vec![], 4.0),
         (0, vec![0, 1, 5], vec![], 3.0),
         (0, vec![0, 1, 3, 4], vec![], 1.0),
-        (0, vec![0, 1, 3, 4], vec![2, game::GRID_ROWS, game::GRID_ROWS + 1], f32::INFINITY),
+        (
+            0,
+            vec![0, 1, 3, 4],
+            vec![2, game::GRID_ROWS, game::GRID_ROWS + 1],
+            f32::INFINITY,
+        ),
         (1, vec![0, 1, 3, 4], vec![], 1.0),
         (429, vec![429], vec![405], 4.0),
     ];
@@ -48,10 +52,9 @@ fn steps_to_win() {
     }
 }
 
-
 #[test]
 fn test_victory() {
-    let arr: [Vec<(i32,i32)>; 6] = [
+    let arr: [Vec<(i32, i32)>; 6] = [
         vec![(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)],
         vec![(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)],
         vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)],
@@ -63,7 +66,7 @@ fn test_victory() {
     for cells in arr {
         let mut p1: Vec<usize> = Vec::new();
         for cell in cells {
-           p1.push(game::get_pos(cell)) ;
+            p1.push(game::get_pos(cell));
         }
         let last_step = p1.last().copied().unwrap();
         let g = game::create_game(p1, Vec::new());
