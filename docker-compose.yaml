@@ -1,16 +1,9 @@
 version: '3.8'
 
-x-common:
-  &common
-  build: server
-  image: gomoku
-  environment:
-    LOG_LEVEL: "INFO"
-
 services:
   server:
-    <<: *common
-    command: ["uvicorn",  "gomoku.app:create_app", "--port", "8000", "--host", "0.0.0.0"]
+    build: gomoku-rs
+    image: gomoku-rs
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000/healthz"]
       interval: 10s
@@ -19,6 +12,8 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    environment:
+      PORT: 8000
 
   ui:
     build: client
