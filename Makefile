@@ -9,15 +9,6 @@ start-server:
 start-client:
 	@cd $(CLIENT_DIR) && yarn start
 
-.PHONY: fmt
-fmt:
-	@cd $(SERVER_DIR) && $(MAKE) fmt
-	@cd $(CLIENT_DIR) && yarn fmt
-
-.PHONY: test
-test:
-	@cd $(SERVER_DIR) && $(MAKE) test
-
 .PHONY: start
 start: stop
 	@docker compose up --build --remove-orphans -d
